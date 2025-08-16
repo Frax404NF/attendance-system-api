@@ -548,7 +548,7 @@ graph TB
         JobQueue[Jobs Queue<br/>late-notification<br/>daily-report<br/>overtime-calc]
     end
 
-    MySQL[(MySQL Database<br/>Permanent Storage<br/>• employees<br/>• attendance)]
+    MySQL[(MySQL Database<br/>Permanent Storage<br/>- employees<br/>- attendance)]
 
     Worker[Background Worker<br/>Job Processor<br/>1. Pick job from queue<br/>2. Send email notifications<br/>3. Log results<br/>4. Mark job complete]
 
@@ -568,35 +568,35 @@ graph TB
 ### **📱 Data Flow Visualization:**
 
 ```mermaid
-graph TD
-    Start[Employee Check-In Request<br/>Time: 09:15 AM]
-
-    subgraph RealTime["REAL-TIME PROCESSING (50ms response)"]
-        Validate[1. VALIDATION<br/>• Authentication<br/>• Request parsing<br/>• Middleware checks]
-        BusinessLogic[2. BUSINESS LOGIC<br/>• Duplicate check<br/>• Late detection<br/>• Data persistence]
-        Respond[3. API RESPONSE<br/>• Success status<br/>• Late indicator<br/>• Timestamp]
-    end
-
-    subgraph Parallel["PARALLEL OPERATIONS (Simultaneous)"]
-        MySQL[MySQL Database<br/>PERMANENT STORAGE<br/><br/>INSERT attendance<br/>record<br/><br/>Status: Saved]
-        Redis[Redis Cache<br/>FAST ACCESS<br/><br/>SET checkin cache<br/>UPDATE office presence<br/><br/>Status: Updated]
-        Queue[Job Queue<br/>BACKGROUND TASKS<br/><br/>ADD notification job<br/>late-employee-alert<br/><br/>Status: Queued]
-    end
-
-    subgraph Background["BACKGROUND PROCESSING (Asynchronous)"]
-        WorkerPick[Job Processing<br/>• Retrieve queued job<br/>• Process employee data<br/>• Prepare notification]
-        SendEmail[Email Notification<br/>• Recipient: Manager<br/>• Subject: Late arrival<br/>• Content: Employee details]
-        Complete[Job Completion<br/>• Mark as processed<br/>• Log execution result<br/>• Clean up resources]
-    end
-
-    Start --> Validate
-    Validate --> BusinessLogic
-    BusinessLogic --> Respond
-    BusinessLogic --> MySQL
-    BusinessLogic --> Redis
-    BusinessLogic --> Queue
-    Queue --> WorkerPick
-    WorkerPick --> SendEmail
+graph TD 
+    Start["Employee Check-In Request<br/>Time: 09:15 AM"] 
+ 
+    subgraph RealTime ["REAL TIME PROCESSING"]
+        Validate["VALIDATION<br/>Authentication<br/>Request parsing<br/>Middleware checks"] 
+        BusinessLogic["BUSINESS LOGIC<br/>Duplicate check<br/>Late detection<br/>Data persistence"] 
+        Respond["API RESPONSE<br/>Success status<br/>Late indicator<br/>Timestamp"] 
+    end 
+ 
+    subgraph Parallel ["PARALLEL OPERATIONS (Simultaneous)"]
+        MySQL["MySQL Database<br/>PERMANENT STORAGE<br/><br/>INSERT attendance<br/>record<br/><br/>Status: Saved"] 
+        Redis["Redis Cache<br/>FAST ACCESS<br/><br/>SET checkin cache<br/>UPDATE office presence<br/><br/>Status: Updated"] 
+        Queue["Job Queue<br/>BACKGROUND TASKS<br/><br/>ADD notification job<br/>late-employee-alert<br/><br/>Status: Queued"] 
+    end 
+ 
+    subgraph Background ["BACKGROUND PROCESSING (Asynchronous)"]
+        WorkerPick["Job Processing<br/>Retrieve queued job<br/>Process employee data<br/>Prepare notification"] 
+        SendEmail["Email Notification<br/>Recipient: Manager<br/>Subject: Late arrival<br/>Content: Employee details"] 
+        Complete["Job Completion<br/>Mark as processed<br/>Log execution result<br/>Clean up resources"] 
+    end 
+ 
+    Start --> Validate 
+    Validate --> BusinessLogic 
+    BusinessLogic --> Respond 
+    BusinessLogic --> MySQL 
+    BusinessLogic --> Redis 
+    BusinessLogic --> Queue 
+    Queue --> WorkerPick 
+    WorkerPick --> SendEmail 
     SendEmail --> Complete
 ```
 
@@ -728,7 +728,7 @@ graph TB
         S5 --> S6[Office Status<br/>Complex DB query<br/>⏱️ 500ms]
         S6 --> S7[User Response<br/>🔴 TOTAL: 3850ms]
         
-        S8[Problems:<br/>• Single server bottleneck<br/>• User waits for email<br/>• Crashes at 100+ users<br/>• No load balancing]
+        S8[Problems:<br/>- Single server bottleneck<br/>- User waits for email<br/>- Crashes at 100+ users<br/>- No load balancing]
     end
 
     subgraph Enterprise["✅ ENTERPRISE SYSTEM (Parallel + Optimized)"]
@@ -742,7 +742,7 @@ graph TB
         
         E6 -.Background Process.-> BG[Email Worker<br/>Processes jobs async<br/>✨ Non-blocking]
         
-        E9[Benefits:<br/>• Multiple server instances<br/>• Background processing<br/>• Handles 1000+ users<br/>• Sub-second response]
+        E9[Benefits:<br/>- Multiple server instances<br/>- Background processing<br/>- Handles 1000+ users<br/>- Sub-second response]
     end
 
     Simple -.68x Faster.-> Enterprise
