@@ -1,0 +1,1547 @@
+{
+	"info": {
+		"_postman_id": "attendance-system-api-enhanced",
+		"name": "Employee Attendance System API - Complete Flow Guide",
+		"description": "Comprehensive API collection for testing Employee Attendance System with Node.js, Redis, MySQL, Message Queues, and NGINX. This collection demonstrates enterprise-level backend patterns including Clean Architecture, caching strategies, background job processing, and real-time data management.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "noauth"
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global pre-request script",
+					"// Auto-generate today's date for reports",
+					"const today = new Date().toISOString().split('T')[0];",
+					"pm.collectionVariables.set('todayDate', today);",
+					"",
+					"// Generate week date range",
+					"const weekAgo = new Date();",
+					"weekAgo.setDate(weekAgo.getDate() - 7);",
+					"pm.collectionVariables.set('weekAgoDate', weekAgo.toISOString().split('T')[0]);",
+					"",
+					"// Add timestamp for debugging",
+					"console.log('Request timestamp:', new Date().toISOString());"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global test script",
+					"// Log response details",
+					"console.log('Response Status:', pm.response.code);",
+					"console.log('Response Time:', pm.response.responseTime + 'ms');",
+					"",
+					"// Track API performance",
+					"pm.test('Response time is reasonable', function () {",
+					"    pm.expect(pm.response.responseTime).to.be.below(5000);",
+					"});",
+					"",
+					"// Verify JSON response format",
+					"if (pm.response.headers.get('Content-Type') && pm.response.headers.get('Content-Type').includes('application/json')) {",
+					"    pm.test('Response is valid JSON', function () {",
+					"        pm.response.to.be.json;",
+					"    });",
+					"}"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3000",
+			"type": "string"
+		},
+		{
+			"key": "authToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "todayDate",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "weekAgoDate",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "testUserId",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "🏥 System Health & Status",
+			"item": [
+				{
+					"name": "Health Check",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Server is healthy', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Health response contains required fields', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('status');",
+									"    pm.expect(response).to.have.property('timestamp');",
+									"    pm.expect(response.status).to.equal('OK');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/health",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"health"
+							]
+						},
+						"description": "**Purpose**: Check if server is running and all services are healthy\n\n**What it tests**:\n- Express server status\n- Database connectivity (implicit)\n- Redis connectivity (implicit)\n- Response time\n\n**Expected Response**:\n```json\n{\n  \"status\": \"OK\",\n  \"timestamp\": \"2025-08-16T...\",\n  \"environment\": \"development\"\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Server Info (404 Test)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Invalid route returns 404', function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test('404 response has proper error message', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('error');",
+									"    pm.expect(response.error).to.include('not found');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/nonexistent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"nonexistent"
+							]
+						},
+						"description": "**Purpose**: Test 404 error handling\n\n**What it tests**:\n- Global error handler functionality\n- Proper 404 response format\n- API route protection"
+					},
+					"response": []
+				}
+			],
+			"description": "System health and basic functionality tests"
+		},
+		{
+			"name": "🔐 Authentication Flow",
+			"item": [
+				{
+					"name": "Login - Alice Smith (IT Department)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Login successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Login response contains token and user data', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('token');",
+									"    pm.expect(response).to.have.property('user');",
+									"    pm.expect(response.user).to.have.property('id');",
+									"    pm.expect(response.user).to.have.property('name');",
+									"    pm.expect(response.user).to.have.property('email');",
+									"    pm.expect(response.user).to.have.property('department');",
+									"});",
+									"",
+									"// Save token and user ID for subsequent requests",
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('authToken', response.token);",
+									"    pm.collectionVariables.set('testUserId', response.user.id);",
+									"    console.log('🔑 Auth Token saved:', response.token.substring(0, 20) + '...');",
+									"    console.log('👤 User Info:', response.user.name, '(' + response.user.department + ')');",
+									"    console.log('📧 Email:', response.user.email);",
+									"}",
+									"",
+									"pm.test('Token format is valid', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.token).to.match(/^token_\\d+_\\d+_[a-f0-9]+$/);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"alice.smith@company.com\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "**Purpose**: Authenticate user and get session token\n\n**What happens internally**:\n1. **Middleware**: Validates email format\n2. **Controller**: Handles HTTP request\n3. **Service**: Checks user exists in MySQL database\n4. **Service**: Generates secure token with crypto.randomBytes\n5. **Redis**: Stores session with TTL (8 hours)\n6. **Response**: Returns token + user data\n\n**Redis Storage**:\n```\nKEY: session:token_1692181234567_2_a1b2c3d4...\nVALUE: {\"id\":2,\"name\":\"Alice Smith\",\"email\":\"alice.smith@company.com\",\"department\":\"IT\"}\nTTL: 28800 seconds (8 hours)\n```\n\n**Expected Response**:\n```json\n{\n  \"token\": \"token_1692181234567_2_a1b2c3d4...\",\n  \"user\": {\n    \"id\": 2,\n    \"name\": \"Alice Smith\",\n    \"email\": \"alice.smith@company.com\",\n    \"department\": \"IT\"\n  }\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Login - Tom Wilson (Manager)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Manager login successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Manager has correct department', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.user.department).to.equal('IT');",
+									"    pm.expect(response.user.name).to.include('Wilson');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"tom.wilson@company.com\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "**Purpose**: Test manager login (different user role)\n\n**Use case**: Managers receive late notifications via email worker when employees check in late"
+					},
+					"response": []
+				},
+				{
+					"name": "Login - Charlie Brown (Marketing)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Charlie login successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Marketing employee login', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.user.department).to.equal('Marketing');",
+									"    console.log('🎯 Marketing employee logged in:', response.user.name);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"charlie.brown@company.com\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "**Purpose**: Test different department user\n\n**Note**: This is the user that was late 584 minutes in your worker log! Perfect for testing late notification system."
+					},
+					"response": []
+				},
+				{
+					"name": "❌ Login - Invalid Email",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Invalid email returns 404', function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test('Error response format', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('error');",
+									"    pm.expect(response.error).to.include('not found');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"nonexistent@company.com\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "**Purpose**: Test error handling for non-existent users\n\n**What happens internally**:\n1. **Service**: Queries MySQL for user\n2. **Result**: No user found\n3. **Response**: 404 with error message\n\n**Security note**: This reveals whether email exists in system (acceptable for internal employee system)"
+					},
+					"response": []
+				},
+				{
+					"name": "❌ Login - Invalid Email Format",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Invalid email format returns 400', function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test('Validation error message', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.error).to.include('email');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"invalid-email-format\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "**Purpose**: Test input validation middleware\n\n**What happens internally**:\n1. **Middleware**: validateLoginRequest checks email format\n2. **Regex**: `/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/` fails\n3. **Response**: 400 before hitting database"
+					},
+					"response": []
+				},
+				{
+					"name": "Logout",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Logout successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Logout confirmation message', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.message).to.include('Logged out successfully');",
+									"});",
+									"",
+									"console.log('🚪 User logged out successfully');"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "{{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/logout",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"logout"
+							]
+						},
+						"description": "**Purpose**: Invalidate session and clear Redis token\n\n**What happens internally**:\n1. **Middleware**: authenticate checks token exists\n2. **Service**: destroySession removes from Redis\n3. **Redis**: DEL session:token_...\n4. **Response**: Confirmation message\n\n**Security**: Token becomes invalid immediately"
+					},
+					"response": []
+				}
+			],
+			"description": "Authentication system testing - login, logout, and security validation"
+		},
+		{
+			"name": "⏰ Attendance Management",
+			"item": [
+				{
+					"name": "Check In (On Time)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Check-in successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Check-in response contains required fields', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('message');",
+									"    pm.expect(response).to.have.property('checkInTime');",
+									"    pm.expect(response).to.have.property('isLate');",
+									"});",
+									"",
+									"pm.test('Check if late notification needed', function () {",
+									"    const response = pm.response.json();",
+									"    const checkInTime = new Date(response.checkInTime);",
+									"    const hours = checkInTime.getHours();",
+									"    const minutes = checkInTime.getMinutes();",
+									"    ",
+									"    console.log('⏰ Check-in time:', checkInTime.toLocaleTimeString());",
+									"    console.log('📧 Late notification:', response.isLate ? 'YES - Email queued' : 'NO - On time');",
+									"    ",
+									"    if (response.isLate) {",
+									"        console.log('🔔 Background worker will process late notification');",
+									"        console.log('📤 Manager will receive email about late arrival');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "{{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/attendance/checkin",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"attendance",
+								"checkin"
+							]
+						},
+						"description": "**Purpose**: Employee check-in to office\n\n**What happens internally (Real-time - ~55ms)**:\n1. **Middleware**: authenticate validates token from Redis\n2. **Service**: Check duplicate prevention cache\n3. **Service**: Detect if late (after 09:00 + 15min threshold)\n4. **MySQL**: INSERT attendance record\n5. **Redis**: Cache check-in to prevent duplicates\n6. **Redis**: Add to `employees_in_office` Set\n7. **Queue**: Add late-notification job (if late)\n8. **Response**: Instant response to user\n\n**Background Processing (Async)**:\n- Worker picks up email job\n- Sends notification to manager\n- Logs email success/failure\n\n**Redis Updates**:\n```\nSADD employees_in_office {userId}\nSET checkin:{userId}:{date} {timestamp}\n```\n\n**Expected Response**:\n```json\n{\n  \"message\": \"Checked in successfully\",\n  \"checkInTime\": \"2025-08-16T07:30:00.000Z\",\n  \"isLate\": false\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "❌ Duplicate Check-in Test",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Duplicate check-in blocked', function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test('Duplicate error message', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.error).to.include('already checked in');",
+									"    console.log('🚫 Duplicate check-in prevented by Redis cache');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "{{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/attendance/checkin",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"attendance",
+								"checkin"
+							]
+						},
+						"description": "**Purpose**: Test duplicate prevention system\n\n**What happens internally**:\n1. **Redis**: Check `checkin:{userId}:{today}` key exists\n2. **Result**: Key found (from previous check-in)\n3. **Response**: 400 error without hitting MySQL\n\n**Business Logic**: Prevents double check-ins, ensures data integrity"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Current Employees in Office",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Current employees retrieved successfully', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains employee list', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('employeesInOffice');",
+									"    pm.expect(response.employeesInOffice).to.be.an('array');",
+									"    ",
+									"    console.log('🏢 Employees currently in office:', response.employeesInOffice.length);",
+									"    response.employeesInOffice.forEach(emp => {",
+									"        console.log('👤', emp.name, '(' + emp.department + ')');",
+									"    });",
+									"});",
+									"",
+									"pm.test('Real-time data performance', function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(100);",
+									"    console.log('⚡ Redis Set lookup time:', pm.response.responseTime + 'ms');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "{{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/attendance/current",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"attendance",
+								"current"
+							]
+						},
+						"description": "**Purpose**: Real-time office presence tracking\n\n**What happens internally (~1ms)**:\n1. **Redis**: SMEMBERS employees_in_office\n2. **MySQL**: Get employee details for each ID\n3. **Response**: Employee list with details\n\n**Use Cases**:\n- Security: Who's in building\n- Management: Team presence\n- Emergency: Evacuation list\n- Facilities: Office capacity\n\n**Redis Performance**: O(1) membership check, sub-millisecond response\n\n**Expected Response**:\n```json\n{\n  \"employeesInOffice\": [\n    {\n      \"id\": 2,\n      \"name\": \"Alice Smith\",\n      \"department\": \"IT\"\n    },\n    {\n      \"id\": 3,\n      \"name\": \"Bob Davis\",\n      \"department\": \"Design\"\n    }\n  ]\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Check Out",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Check-out successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Check-out response contains work duration', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('message');",
+									"    pm.expect(response).to.have.property('checkOutTime');",
+									"    pm.expect(response).to.have.property('totalWorkHours');",
+									"    ",
+									"    console.log('🚪 Check-out time:', new Date(response.checkOutTime).toLocaleTimeString());",
+									"    console.log('⏱️ Total work hours:', response.totalWorkHours);",
+									"    ",
+									"    if (response.totalWorkHours > 8) {",
+									"        console.log('⏰ Overtime detected! Potential email notification.');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "{{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/attendance/checkout",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"attendance",
+								"checkout"
+							]
+						},
+						"description": "**Purpose**: Employee check-out from office\n\n**What happens internally**:\n1. **MySQL**: Find today's attendance record\n2. **MySQL**: UPDATE with checkout time\n3. **Calculate**: Work duration (checkout - checkin)\n4. **Redis**: SREM from employees_in_office Set\n5. **Queue**: Add overtime notification (if >8 hours)\n6. **Response**: Checkout confirmation with stats\n\n**Business Logic**:\n- Calculate overtime (>8 hours)\n- Update real-time office presence\n- Generate payroll data\n\n**Expected Response**:\n```json\n{\n  \"message\": \"Checked out successfully\",\n  \"checkOutTime\": \"2025-08-16T17:30:00.000Z\",\n  \"totalWorkHours\": 8.5\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "❌ Check-out Without Check-in",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Check-out without check-in blocked', function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test('Business logic error message', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.error).to.include('check in');",
+									"    console.log('🚫 Business rule enforced: Must check-in before check-out');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "{{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/attendance/checkout",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"attendance",
+								"checkout"
+							]
+						},
+						"description": "**Purpose**: Test business logic validation\n\n**What happens internally**:\n1. **MySQL**: Look for today's attendance record\n2. **Result**: No check-in found for today\n3. **Response**: 400 error with business rule message\n\n**Business Rule**: Cannot check-out without prior check-in"
+					},
+					"response": []
+				}
+			],
+			"description": "Core attendance functionality - check-in, check-out, and real-time tracking"
+		},
+		{
+			"name": "📊 Reporting & Analytics",
+			"item": [
+				{
+					"name": "Get Today's Reports",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Reports retrieved successfully', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Report data structure', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('attendanceData');",
+									"    pm.expect(response).to.have.property('summary');",
+									"    pm.expect(response.attendanceData).to.be.an('array');",
+									"    ",
+									"    console.log('📊 Report Summary:');",
+									"    console.log('- Total records:', response.attendanceData.length);",
+									"    console.log('- Date range:', pm.collectionVariables.get('todayDate'));",
+									"    ",
+									"    if (response.summary) {",
+									"        console.log('- Present today:', response.summary.presentToday || 'N/A');",
+									"        console.log('- Late arrivals:', response.summary.lateArrivals || 'N/A');",
+									"    }",
+									"});",
+									"",
+									"pm.test('Caching performance check', function () {",
+									"    // First request might be slower (cache miss)",
+									"    // Subsequent requests should be faster (cache hit)",
+									"    console.log('📈 Response time:', pm.response.responseTime + 'ms');",
+									"    console.log('💾 Cache status: ' + (pm.response.responseTime < 50 ? 'LIKELY HIT' : 'LIKELY MISS'));",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "{{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/attendance/reports?startDate={{todayDate}}&endDate={{todayDate}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"attendance",
+								"reports"
+							],
+							"query": [
+								{
+									"key": "startDate",
+									"value": "{{todayDate}}"
+								},
+								{
+									"key": "endDate",
+									"value": "{{todayDate}}"
+								}
+							]
+						},
+						"description": "**Purpose**: Generate today's attendance report with caching\n\n**What happens internally**:\n1. **Cache Check**: Redis GET `report:{startDate}:{endDate}`\n2. **Cache Miss**: Complex MySQL query with JOINs\n3. **Cache Set**: Redis SETEX with 1-hour TTL\n4. **Response**: Report data\n\n**Caching Strategy**:\n- **First Request**: ~200-500ms (database query)\n- **Cached Requests**: ~1-5ms (Redis lookup)\n- **TTL**: 1 hour (3600 seconds)\n\n**Use Cases**:\n- Daily manager reports\n- Payroll data\n- Compliance tracking\n- Performance analytics\n\n**Expected Response**:\n```json\n{\n  \"attendanceData\": [\n    {\n      \"employee_id\": 2,\n      \"name\": \"Alice Smith\",\n      \"department\": \"IT\",\n      \"date\": \"2025-08-16\",\n      \"check_in_time\": \"2025-08-16T08:30:00.000Z\",\n      \"check_out_time\": \"2025-08-16T17:30:00.000Z\"\n    }\n  ],\n  \"summary\": {\n    \"presentToday\": 3,\n    \"lateArrivals\": 1\n  }\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Weekly Reports",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Weekly report retrieved', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Weekly data analysis', function () {",
+									"    const response = pm.response.json();",
+									"    const records = response.attendanceData;",
+									"    ",
+									"    console.log('📅 Weekly Report Analysis:');",
+									"    console.log('- Total records:', records.length);",
+									"    console.log('- Date range:', pm.collectionVariables.get('weekAgoDate'), 'to', pm.collectionVariables.get('todayDate'));",
+									"    ",
+									"    // Analyze attendance patterns",
+									"    const departmentStats = {};",
+									"    records.forEach(record => {",
+									"        if (!departmentStats[record.department]) {",
+									"            departmentStats[record.department] = 0;",
+									"        }",
+									"        departmentStats[record.department]++;",
+									"    });",
+									"    ",
+									"    console.log('👥 Department attendance:');",
+									"    Object.keys(departmentStats).forEach(dept => {",
+									"        console.log('  -', dept + ':', departmentStats[dept], 'records');",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "{{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/attendance/reports?startDate={{weekAgoDate}}&endDate={{todayDate}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"attendance",
+								"reports"
+							],
+							"query": [
+								{
+									"key": "startDate",
+									"value": "{{weekAgoDate}}"
+								},
+								{
+									"key": "endDate",
+									"value": "{{todayDate}}"
+								}
+							]
+						},
+						"description": "**Purpose**: Weekly attendance analysis\n\n**Business Value**:\n- Trend analysis\n- Department comparisons\n- Weekly patterns\n- Manager insights"
+					},
+					"response": []
+				},
+				{
+					"name": "❌ Reports - Missing Parameters",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Missing parameters validation', function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test('Validation error message', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.error).to.include('required');",
+									"    console.log('✅ Input validation working properly');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "{{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/attendance/reports",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"attendance",
+								"reports"
+							]
+						},
+						"description": "**Purpose**: Test input validation\n\n**Business Rule**: Date range required for reports"
+					},
+					"response": []
+				},
+				{
+					"name": "Cache Performance Test (Repeat Request)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Cached request is faster', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Cache performance validation', function () {",
+									"    const responseTime = pm.response.responseTime;",
+									"    console.log('🚀 Cached response time:', responseTime + 'ms');",
+									"    ",
+									"    if (responseTime < 50) {",
+									"        console.log('✅ CACHE HIT - Lightning fast Redis lookup!');",
+									"        pm.expect(responseTime).to.be.below(50);",
+									"    } else {",
+									"        console.log('⚠️ CACHE MISS - Database query executed');",
+									"        console.log('   (This is normal for first request)');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "{{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/attendance/reports?startDate={{todayDate}}&endDate={{todayDate}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"attendance",
+								"reports"
+							],
+							"query": [
+								{
+									"key": "startDate",
+									"value": "{{todayDate}}"
+								},
+								{
+									"key": "endDate",
+									"value": "{{todayDate}}"
+								}
+							]
+						},
+						"description": "**Purpose**: Demonstrate caching performance\n\n**Expected Behavior**:\n- **First request**: 200-500ms (database)\n- **This request**: 1-50ms (Redis cache)\n- **Cache TTL**: 1 hour\n\n**Performance Improvement**: ~10-50x faster response"
+					},
+					"response": []
+				}
+			],
+			"description": "Reporting system with intelligent caching strategies"
+		},
+		{
+			"name": "🚫 Error Handling & Security",
+			"item": [
+				{
+					"name": "❌ Unauthorized - No Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('No token returns 401', function () {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"",
+									"pm.test('Proper authentication error', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.error).to.include('token required');",
+									"    console.log('🔒 Authentication middleware working correctly');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/attendance/checkin",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"attendance",
+								"checkin"
+							]
+						},
+						"description": "**Purpose**: Test authentication middleware\n\n**Security Layer**: All protected routes require valid token"
+					},
+					"response": []
+				},
+				{
+					"name": "❌ Invalid Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Invalid token returns 401', function () {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"",
+									"pm.test('Token validation error', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.error).to.include('Invalid or expired');",
+									"    console.log('🔐 Token validation working properly');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "invalid_token_12345"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/attendance/checkin",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"attendance",
+								"checkin"
+							]
+						},
+						"description": "**Purpose**: Test token validation\n\n**What happens internally**:\n1. **Middleware**: Checks Redis for session\n2. **Result**: Token not found in Redis\n3. **Response**: 401 unauthorized"
+					},
+					"response": []
+				},
+				{
+					"name": "❌ SQL Injection Test",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('SQL injection attempt blocked', function () {",
+									"    // Should return either 400 (validation) or 404 (not found)",
+									"    pm.expect([400, 404]).to.include(pm.response.code);",
+									"});",
+									"",
+									"pm.test('No SQL injection vulnerability', function () {",
+									"    const response = pm.response.json();",
+									"    // Should not contain SQL error messages",
+									"    pm.expect(JSON.stringify(response).toLowerCase()).to.not.include('syntax error');",
+									"    pm.expect(JSON.stringify(response).toLowerCase()).to.not.include('mysql');",
+									"    console.log('🛡️ SQL injection protection working');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"test@company.com'; DROP TABLE employees; --\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "**Purpose**: Test SQL injection protection\n\n**Security**: Prepared statements prevent SQL injection attacks"
+					},
+					"response": []
+				}
+			],
+			"description": "Security testing and error handling validation"
+		},
+		{
+			"name": "🔄 Complete Workflow Scenarios",
+			"item": [
+				{
+					"name": "Scenario 1: Normal Work Day",
+					"item": [
+						{
+							"name": "1.1 Morning Login",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 200) {",
+											"    const response = pm.response.json();",
+											"    pm.collectionVariables.set('authToken', response.token);",
+											"    console.log('🌅 Morning login successful for', response.user.name);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"email\": \"alice.smith@company.com\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/login",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"auth",
+										"login"
+									]
+								},
+								"description": "**Scenario**: Normal employee starting their day"
+							},
+							"response": []
+						},
+						{
+							"name": "1.2 On-Time Check-In",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test('On-time check-in', function () {",
+											"    const response = pm.response.json();",
+											"    console.log('✅ Check-in status:', response.isLate ? 'LATE' : 'ON TIME');",
+											"    console.log('⏰ Check-in time:', new Date(response.checkInTime).toLocaleTimeString());",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "{{authToken}}"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/attendance/checkin",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"attendance",
+										"checkin"
+									]
+								},
+								"description": "**Expected**: No late notification, clean check-in"
+							},
+							"response": []
+						},
+						{
+							"name": "1.3 Check Office Status",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "{{authToken}}"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/attendance/current",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"attendance",
+										"current"
+									]
+								},
+								"description": "**Expected**: Alice should appear in office list"
+							},
+							"response": []
+						},
+						{
+							"name": "1.4 End of Day Checkout",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test('Normal work day completed', function () {",
+											"    const response = pm.response.json();",
+											"    console.log('🏠 Work day completed');",
+											"    console.log('⏱️ Total hours worked:', response.totalWorkHours);",
+											"    ",
+											"    if (response.totalWorkHours >= 8) {",
+											"        console.log('✅ Full work day completed');",
+											"    } else {",
+											"        console.log('⚠️ Partial work day');",
+											"    }",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "{{authToken}}"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/attendance/checkout",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"attendance",
+										"checkout"
+									]
+								},
+								"description": "**Expected**: Normal 8-hour work day"
+							},
+							"response": []
+						}
+					],
+					"description": "Complete normal work day simulation"
+				},
+				{
+					"name": "Scenario 2: Late Arrival with Email Notification",
+					"item": [
+						{
+							"name": "2.1 Login as Charlie",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 200) {",
+											"    const response = pm.response.json();",
+											"    pm.collectionVariables.set('authToken', response.token);",
+											"    console.log('🔑 Charlie logged in (about to be late!)');",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"email\": \"charlie.brown@company.com\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/login",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"auth",
+										"login"
+									]
+								},
+								"description": "**Scenario**: Employee who will arrive late"
+							},
+							"response": []
+						},
+						{
+							"name": "2.2 Late Check-In (Triggers Email)",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test('Late check-in triggers notification', function () {",
+											"    const response = pm.response.json();",
+											"    ",
+											"    console.log('⏰ Check-in time:', new Date(response.checkInTime).toLocaleTimeString());",
+											"    console.log('🚨 Late status:', response.isLate);",
+											"    ",
+											"    if (response.isLate) {",
+											"        console.log('📧 EMAIL NOTIFICATION QUEUED!');",
+											"        console.log('👀 Check your worker terminal for email processing');",
+											"        console.log('📤 Manager will receive late arrival notification');",
+											"    }",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "{{authToken}}"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/attendance/checkin",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"attendance",
+										"checkin"
+									]
+								},
+								"description": "**Expected**: Late notification email job queued\n\n**What to watch**:\n1. API responds instantly (~55ms)\n2. Worker terminal shows email processing\n3. Manager gets notification about late arrival\n\n**This demonstrates**:\n- Non-blocking API design\n- Background job processing\n- Real-time notifications\n- Performance optimization"
+							},
+							"response": []
+						}
+					],
+					"description": "Demonstrates late arrival detection and email notification system"
+				},
+				{
+					"name": "Scenario 3: Manager Report Generation",
+					"item": [
+						{
+							"name": "3.1 Manager Login",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 200) {",
+											"    const response = pm.response.json();",
+											"    pm.collectionVariables.set('authToken', response.token);",
+											"    console.log('👔 Manager', response.user.name, 'logged in');",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"email\": \"tom.wilson@company.com\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/auth/login",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"auth",
+										"login"
+									]
+								},
+								"description": "**Scenario**: Manager checking team performance"
+							},
+							"response": []
+						},
+						{
+							"name": "3.2 Real-time Office Status",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test('Manager can see team status', function () {",
+											"    const response = pm.response.json();",
+											"    console.log('👥 Team members in office:', response.employeesInOffice.length);",
+											"    ",
+											"    response.employeesInOffice.forEach(emp => {",
+											"        console.log('  ✅', emp.name, '(' + emp.department + ')');",
+											"    });",
+											"    ",
+											"    console.log('⚡ Real-time data fetched in', pm.response.responseTime + 'ms');",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "{{authToken}}"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/attendance/current",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"attendance",
+										"current"
+									]
+								},
+								"description": "**Manager Use Case**: Quick team visibility"
+							},
+							"response": []
+						},
+						{
+							"name": "3.3 Generate Weekly Team Report",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test('Weekly report generated', function () {",
+											"    const response = pm.response.json();",
+											"    console.log('📊 Weekly report generated');",
+											"    console.log('📈 Total records:', response.attendanceData.length);",
+											"    console.log('⏱️ Query time:', pm.response.responseTime + 'ms');",
+											"    ",
+											"    // Performance analysis",
+											"    if (pm.response.responseTime < 50) {",
+											"        console.log('🚀 CACHED REPORT - Lightning fast!');",
+											"    } else {",
+											"        console.log('🔍 FRESH REPORT - Database query executed');",
+											"    }",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "{{authToken}}"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/api/attendance/reports?startDate={{weekAgoDate}}&endDate={{todayDate}}",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"attendance",
+										"reports"
+									],
+									"query": [
+										{
+											"key": "startDate",
+											"value": "{{weekAgoDate}}"
+										},
+										{
+											"key": "endDate",
+											"value": "{{todayDate}}"
+										}
+									]
+								},
+								"description": "**Manager Use Case**: Weekly team performance analysis\n\n**Caching Demo**: Run this twice to see caching in action"
+							},
+							"response": []
+						}
+					],
+					"description": "Manager workflow for team monitoring and reporting"
+				}
+			],
+			"description": "Real-world workflow scenarios demonstrating complete system functionality"
+		}
+	]
+}
