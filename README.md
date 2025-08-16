@@ -50,9 +50,6 @@ attendance-system/
 │   │   └── attendanceService.js    # Attendance business logic
 │   └── workers/
 │       └── email-worker.js         # Background job processor
-├── docs/
-│   ├── things-to-learn.md          # Backend engineering concepts
-│   └── *.md                        # Additional documentation
 └── tests/
     └── *.postman_collection.json   # API testing collection
 ```
